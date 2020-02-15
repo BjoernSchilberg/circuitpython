@@ -3,6 +3,7 @@
 # The MIT License (MIT)
 #
 # Copyright (c) 2019 Dan Halbert for Adafruit Industries
+# Copyright (c) 2019 Aadalie - adding C++ support by Sorunome
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -52,7 +53,36 @@ BASE_CFLAGS = \
 	-DCIRCUITPY_SOFTWARE_SAFE_MODE=0x0ADABEEF \
 	-DCIRCUITPY_CANARY_WORD=0xADAF00 \
 	-DCIRCUITPY_SAFE_RESTART_WORD=0xDEADBEEF \
-	--param max-inline-insns-single=500
+	--param max-inline-insns-single=500 \
+	$(DEFINES_EXTRA)
+
+BASE_CPPFLAGS = \
+	-fsingle-precision-constant \
+	-fno-strict-aliasing \
+	-Wno-endif-labels \
+	-Wfloat-equal \
+	-Wundef \
+	-Wwrite-strings \
+	-Wsign-compare \
+	-Wno-deprecated-declarations \
+	-Wunreachable-code \
+	-Wno-error=lto-type-mismatch \
+	-Wno-overflow \
+	-Wno-error=class-memaccess \
+	-Wno-error=float-equal \
+	-Wno-error=unused-variable \
+	-Wno-error=narrowing \
+	-D__$(CHIP_VARIANT)__ \
+	-ffunction-sections \
+	-fdata-sections \
+	-fshort-enums \
+	-DCIRCUITPY_SOFTWARE_SAFE_MODE=0x0ADABEEF \
+	-DCIRCUITPY_CANARY_WORD=0xADAF00 \
+	-DCIRCUITPY_SAFE_RESTART_WORD=0xDEADBEEF \
+	--param max-inline-insns-single=500 \
+	-fno-exceptions \
+	-fno-rtti \
+	$(DEFINES_EXTRA)
 
 #        Use these flags to debug build times and header includes.
 #        -ftime-report
@@ -162,9 +192,6 @@ endif
 ifeq ($(CIRCUITPY_PULSEIO),1)
 SRC_PATTERNS += pulseio/%
 endif
-ifeq ($(CIRCUITPY_PS2IO),1)
-SRC_PATTERNS += ps2io/%
-endif
 ifeq ($(CIRCUITPY_RANDOM),1)
 SRC_PATTERNS += random/%
 endif
@@ -255,8 +282,6 @@ $(filter $(SRC_PATTERNS), \
 	pulseio/PulseIn.c \
 	pulseio/PulseOut.c \
 	pulseio/__init__.c \
-	ps2io/Ps2.c \
-	ps2io/__init__.c \
 	rotaryio/IncrementalEncoder.c \
 	rotaryio/__init__.c \
 	rtc/RTC.c \
@@ -366,8 +391,3 @@ $(addprefix lib/,\
 	libm/atan2f.c \
 	)
 endif
-
-.PHONY: check-release-needs-clean-build
-
-check-release-needs-clean-build:
-	@echo "RELEASE_NEEDS_CLEAN_BUILD = $(RELEASE_NEEDS_CLEAN_BUILD)"

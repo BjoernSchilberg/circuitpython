@@ -3,6 +3,7 @@
 # The MIT License (MIT)
 #
 # Copyright (c) 2019 Dan Halbert for Adafruit Industries
+# Copyright (c) 2019 Aadalie - adding C++ support by Sorunome
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -80,15 +81,16 @@ INC += -I. \
        -Ifreetouch \
        -I../../lib/tinyusb/src \
        -I../../supervisor/shared/usb \
-       -I$(BUILD)
-
-
-# NDEBUG disables assert() statements. This reduces code size pretty dramatically, per tannewt.
+       -I$(BUILD) \
+       $(INC_EXTRA)
 
 ifeq ($(CHIP_FAMILY), samd21)
 CFLAGS += -Os -DNDEBUG
 # TinyUSB defines
 CFLAGS += -DCFG_TUSB_MCU=OPT_MCU_SAMD21 -DCFG_TUD_MIDI_RX_BUFSIZE=128 -DCFG_TUD_CDC_RX_BUFSIZE=128 -DCFG_TUD_MIDI_TX_BUFSIZE=128 -DCFG_TUD_CDC_TX_BUFSIZE=128 -DCFG_TUD_MSC_BUFSIZE=512
+CPPFLAGS += -Os -DNDEBUG
+# TinyUSB defines
+CPPFLAGS += -DCFG_TUSB_MCU=OPT_MCU_SAMD21 -DCFG_TUD_MIDI_RX_BUFSIZE=128 -DCFG_TUD_CDC_RX_BUFSIZE=128 -DCFG_TUD_MIDI_TX_BUFSIZE=128 -DCFG_TUD_CDC_TX_BUFSIZE=128 -DCFG_TUD_MSC_BUFSIZE=512
 endif
 
 ifeq ($(CHIP_FAMILY), samd51)
@@ -99,9 +101,10 @@ endif
 
 #Debugging/Optimization
 ifeq ($(DEBUG), 1)
+  # Turn on Python modules useful for debugging (e.g. uheap, ustack).
   CFLAGS += -ggdb
   # You may want to disable -flto if it interferes with debugging.
-  CFLAGS += -flto -flto-partition=none
+  CFLAGS += -flto
   # You may want to enable these flags to make setting breakpoints easier.
   # CFLAGS += -fno-inline -fno-ipa-sra
   ifeq ($(CHIP_FAMILY), samd21)
@@ -111,24 +114,30 @@ else
   # -finline-limit can shrink the image size.
   # -finline-limit=80 or so is similar to not having it on.
   # There is no simple default value, though.
-
-  # Do a default shrink for small builds.
-  ifndef CFLAGS_INLINE_LIMIT
-    ifeq ($(CIRCUITPY_SMALL_BUILD),1)
-      CFLAGS_INLINE_LIMIT = 50
-    endif
+  ifeq ($(INTERNAL_FLASH_FILESYSTEM),1)
+    CFLAGS += -finline-limit=50
+    CPPFLAGS += -finline-limit=50
   endif
-
   ifdef CFLAGS_INLINE_LIMIT
     CFLAGS += -finline-limit=$(CFLAGS_INLINE_LIMIT)
+    CPPFLAGS += -finline-limit=$(CFLAGS_INLINE_LIMIT)
   endif
-  CFLAGS += -flto -flto-partition=none
+  CFLAGS += -flto
+  CPPFLAGS += -flto
 endif
 
-CFLAGS += $(INC) -Wall -Werror -std=gnu11 -nostdlib $(BASE_CFLAGS) $(CFLAGS_MOD) $(COPT)
+CFLAGS += $(INC) -Wall -Werror -std=gnu11 -nostdlib $(BASE_CFLAGS) $(CFLAGS_MOD) $(COPT) -g
+CPPFLAGS += $(INC) -Wall -Werror -std=gnu++11 -nostdlib $(BASE_CPPFLAGS) $(CFLAGS_MOD) $(COPT) -g
 
 ifeq ($(CHIP_FAMILY), samd21)
 CFLAGS += \
+	-mthumb \
+	-mabi=aapcs-linux \
+	-mcpu=cortex-m0plus \
+	-msoft-float \
+	-mfloat-abi=soft \
+	-DSAMD21
+CPPFLAGS += \
 	-mthumb \
 	-mabi=aapcs-linux \
 	-mcpu=cortex-m0plus \
@@ -146,9 +155,7 @@ CFLAGS += \
 	-DSAMD51
 endif
 
-
-
-LDFLAGS = $(CFLAGS) -nostartfiles -fshort-enums -Wl,-nostdlib -Wl,-T,$(LD_FILE) -Wl,-Map=$@.map -Wl,-cref -Wl,-gc-sections -specs=nano.specs
+LDFLAGS = $(CFLAGS) -static -nostartfiles -ffreestanding -nostartfiles -fshort-enums -Wl,-nostdlib -Wl,-T,$(LD_FILE) -Wl,-Map=$@.map -Wl,-cref -Wl,-gc-sections -specs=nano.specs -specs=nosys.specs -g -lc -lnosys
 LIBS := -lgcc -lc
 
 # Use toolchain libm if we're not using our own.
@@ -158,10 +165,14 @@ endif
 
 ifeq ($(CHIP_FAMILY), samd21)
 LDFLAGS += -mthumb -mcpu=cortex-m0plus -Lasf/thirdparty/CMSIS/Lib/GCC/
+ifeq ($(BOOTLOADER_SIZE),)
 BOOTLOADER_SIZE := 0x2000
+endif
 else ifeq ($(CHIP_FAMILY), samd51)
 LDFLAGS += -mthumb -mcpu=cortex-m4
+ifeq ($(BOOTLOADER_SIZE),)
 BOOTLOADER_SIZE := 0x4000
+endif
 endif
 
 SRC_ASF := \
@@ -251,7 +262,10 @@ SRC_C = \
 	supervisor/shared/memory.c \
 	tick.c \
 	timer_handler.c \
+	$(SRC_C_EXTRA)
 
+SRC_CPP = \
+	$(SRC_CPP_EXTRA)
 
 ifeq ($(CIRCUITPY_NETWORK),1)
 CFLAGS += -DMICROPY_PY_NETWORK=1
@@ -294,6 +308,7 @@ SRC_SHARED_MODULE_EXPANDED = $(addprefix shared-bindings/, $(SRC_SHARED_MODULE))
 SRC_S = supervisor/$(CHIP_FAMILY)_cpu.s
 
 OBJ = $(PY_O) $(SUPERVISOR_O) $(addprefix $(BUILD)/, $(SRC_C:.c=.o))
+OBJ += $(addprefix $(BUILD)/, $(SRC_CPP:.cpp=.o))
 OBJ += $(addprefix $(BUILD)/, $(SRC_ASF:.c=.o))
 OBJ += $(addprefix $(BUILD)/, $(SRC_COMMON_HAL_EXPANDED:.c=.o))
 OBJ += $(addprefix $(BUILD)/, $(SRC_SHARED_MODULE_EXPANDED:.c=.o))
@@ -303,7 +318,7 @@ endif
 OBJ += $(addprefix $(BUILD)/, $(SRC_S:.s=.o))
 OBJ += $(addprefix $(BUILD)/, $(SRC_MOD:.c=.o))
 
-SRC_QSTR += $(SRC_C) $(SRC_SUPERVISOR) $(SRC_COMMON_HAL_EXPANDED) $(SRC_SHARED_MODULE_EXPANDED)
+SRC_QSTR += $(SRC_C) $(SRC_CPP) $(SRC_SUPERVISOR) $(SRC_COMMON_HAL_EXPANDED) $(SRC_SHARED_MODULE_EXPANDED)
 # Sources that only hold QSTRs after pre-processing.
 SRC_QSTR_PREPROCESSOR += peripherals/samd/$(CHIP_FAMILY)/clocks.c
 
@@ -311,7 +326,7 @@ all: $(BUILD)/firmware.bin $(BUILD)/firmware.uf2
 
 $(BUILD)/firmware.elf: $(OBJ)
 	$(STEPECHO) "LINK $@"
-	$(Q)$(CC) -o $@ $(LDFLAGS) $^ -Wl,--start-group $(LIBS) -Wl,--end-group
+	$(Q)$(CXX) -o $@ $(LDFLAGS) $^ -Wl,--start-group $(LIBS) -Wl,--end-group
 	$(Q)$(SIZE) $@ | $(PYTHON3) $(TOP)/tools/build_memory_info.py $(LD_FILE)
 
 $(BUILD)/firmware.bin: $(BUILD)/firmware.elf

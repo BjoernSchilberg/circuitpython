@@ -34,6 +34,7 @@
 #define CIRCUITPY_MCU_FAMILY                        samd21
 #define MICROPY_PY_SYS_PLATFORM                     "Atmel SAMD21"
 #define SPI_FLASH_MAX_BAUDRATE 8000000
+#define CIRCUITPY_DEFAULT_STACK_SIZE                4096
 #define MICROPY_PY_BUILTINS_NOTIMPLEMENTED          (0)
 #define MICROPY_PY_COLLECTIONS_ORDEREDDICT          (0)
 #define MICROPY_PY_FUNCTION_ATTRS                   (0)
@@ -68,7 +69,6 @@
 #define MICROPY_PY_UJSON                            (1)
 #define MICROPY_PY_REVERSE_SPECIAL_METHODS          (1)
 //      MICROPY_PY_UERRNO_LIST - Use the default
-
 #endif
 
 // Turning off audioio, audiobusio, and touchio as necessary
@@ -78,21 +78,13 @@
 
 #include "py/circuitpy_mpconfig.h"
 
-
-#ifdef SAMD21
-#ifndef CIRCUITPY_DEFAULT_STACK_SIZE
-#define CIRCUITPY_DEFAULT_STACK_SIZE                4096
-#endif
-#endif
-
-#ifdef SAMD51
-#ifndef CIRCUITPY_DEFAULT_STACK_SIZE
-#define CIRCUITPY_DEFAULT_STACK_SIZE                (24*1024)
-#endif
+#ifndef BOARD_ROOT_POINTERS
+#define BOARD_ROOT_POINTERS
 #endif
 
 #define MICROPY_PORT_ROOT_POINTERS \
     CIRCUITPY_COMMON_ROOT_POINTERS \
-    mp_obj_t playing_audio[AUDIO_DMA_CHANNEL_COUNT];
+    mp_obj_t playing_audio[AUDIO_DMA_CHANNEL_COUNT]; \
+    BOARD_ROOT_POINTERS
 
-#endif  // __INCLUDED_MPCONFIGPORT_H
+#endif // __INCLUDED_MPCONFIGPORT_H

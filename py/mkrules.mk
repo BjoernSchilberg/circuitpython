@@ -42,9 +42,18 @@ $(Q)$(CC) $(CFLAGS) -c -MD -o $@ $<
   $(RM) -f $(@:.o=.d)
 endef
 
+define compile_cpp
+$(STEPECHO) "C++ $<"
+$(Q)$(CXX) $(CPPFLAGS) -c -MD -o $@ $<
+endef
+
 vpath %.c . $(TOP) $(USER_C_MODULES)
 $(BUILD)/%.o: %.c
 	$(call compile_c)
+
+vpath %.cpp . $(TOP)
+$(BUILD)/%.o: $.cpp
+	$(call compile_cpp)
 
 QSTR_GEN_EXTRA_CFLAGS += -DNO_QSTR
 
@@ -53,6 +62,10 @@ QSTR_GEN_EXTRA_CFLAGS += -DNO_QSTR
 vpath %.c . $(BUILD)
 $(BUILD)/%.o: %.c
 	$(call compile_c)
+
+vpath %.c . $(BUILD)
+$(BUILD)/%.o: %.cpp
+	$(call compile_cpp)
 
 QSTR_GEN_EXTRA_CFLAGS += -I$(BUILD)/tmp
 
@@ -79,7 +92,7 @@ $(OBJ): | $(HEADER_BUILD)/qstrdefs.enum.h $(HEADER_BUILD)/mpversion.h
 # - else, process all source files ($^) [this covers "make -B" which can set $? to empty]
 $(HEADER_BUILD)/qstr.i.last: $(SRC_QSTR) $(SRC_QSTR_PREPROCESSOR) $(QSTR_GLOBAL_DEPENDENCIES) | $(HEADER_BUILD)/mpversion.h
 	$(STEPECHO) "GEN $@"
-	$(Q)grep -lE "(MP_QSTR|translate)" $(if $(filter $?,$(QSTR_GLOBAL_DEPENDENCIES)),$^,$(if $?,$?,$^)) | xargs $(CPP) $(QSTR_GEN_EXTRA_CFLAGS) $(CFLAGS) $(SRC_QSTR_PREPROCESSOR) >$(HEADER_BUILD)/qstr.i.last;
+	$(Q)grep -lE "(MP_QSTR|translate)" $(if $(filter $?,$(QSTR_GLOBAL_DEPENDENCIES)),$(filter-out %.cpp,$^),$(if $?,$?,$(filter-out %.cpp,$^))) | xargs $(CPP) $(QSTR_GEN_EXTRA_CFLAGS) $(CFLAGS) $(SRC_QSTR_PREPROCESSOR) >$(HEADER_BUILD)/qstr.i.last;
 
 $(HEADER_BUILD)/qstr.split: $(HEADER_BUILD)/qstr.i.last $(PY_SRC)/makeqstrdefs.py
 	$(STEPECHO) "GEN $@"

@@ -95,3 +95,9 @@
 [submodule "frozen/circuitpython-stage"]
 	path = frozen/circuitpython-stage
 	url = https://github.com/python-ugame/circuitpython-stage.git
+[submodule "ports/atmel-samd/peripherals"]
+	path = ports/atmel-samd/peripherals
+	url = https://github.com/Gamebuino/gamebuino-samd-peripherals.git
+[submodule "ports/atmel-samd/modules/Gamebuino-META"]
+	path = ports/atmel-samd/modules/Gamebuino-META
+	url = https://github.com/Gamebuino/Gamebuino-META

@@ -28,10 +28,10 @@ import re
 import sys
 
 # Handle size constants with K or M suffixes (allowed in .ld but not in Python).
-K_PATTERN = re.compile(r'([0-9]+)K')
+K_PATTERN = re.compile(r'([0-9]+)[Kk]')
 K_REPLACE = r'(\1*1024)'
 
-M_PATTERN = re.compile(r'([0-9]+)M')
+M_PATTERN = re.compile(r'([0-9]+)[Mm]')
 M_REPLACE = r'(\1*1024*1024)'
 
 print()
@@ -61,11 +61,10 @@ for region in regions:
     space = M_PATTERN.sub(M_REPLACE, space)
     regions[region] = eval(space)
 
-ram_region = regions["RAM"]
 free_flash = regions["FLASH"] - text - data
 free_ram = regions["RAM"] - data - bss
 print(free_flash, "bytes free in flash out of", regions["FLASH"], "bytes (", regions["FLASH"] / 1024, "kb ).")
-print("{} bytes free in ram for stack and heap out of {} bytes ({}kB).".format(free_ram, ram_region, ram_region / 1024))
+print(free_ram, "bytes free in ram for stack out of", regions["RAM"], "bytes (", regions["RAM"] / 1024, "kb ).")
 print()
 
 # Check that we have free flash space. GCC doesn't fail when the text + data

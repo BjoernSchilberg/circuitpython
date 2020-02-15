@@ -52,7 +52,6 @@
 #include "common-hal/pulseio/PulseIn.h"
 #include "common-hal/pulseio/PulseOut.h"
 #include "common-hal/pulseio/PWMOut.h"
-#include "common-hal/ps2io/Ps2.h"
 #include "common-hal/rtc/RTC.h"
 #include "common-hal/touchio/TouchIn.h"
 #include "samd/cache.h"
@@ -283,6 +282,7 @@ uint32_t port_get_saved_word(void) {
     return *safe_word;
 }
 
+#ifndef NO_HARDFAULT_HANDLER
 /**
  * \brief Default interrupt handler for unused IRQs.
  */
@@ -299,3 +299,4 @@ __attribute__((used)) void HardFault_Handler(void)
         asm("nop;");
     }
 }
+#endif // NO_HARDFAULT_HANDLER
